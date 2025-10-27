@@ -1,0 +1,135 @@
+// === Helper to update Grafana variable using getLocationSrv ===
+function applyVars(vars) {
+  console.log("📍 APPLYING GRAFANA VARIABLES");
+  console.log("Variables object map:", vars);
+  
+  if (!getLocationSrv) {
+    console.error("❌ getLocationSrv is not available");
+    return;
+  }
+  
+  const ls = getLocationSrv();
+  if (typeof ls.partial === 'function') {
+    console.log("Using ls.partial()");
+    ls.partial(vars, true);
+  } else if (typeof ls.update === 'function') {
+    console.log("Using ls.update()");
+    ls.update({ partial: true, replace: true, query: vars });
+  } else {
+    console.error("❌ No suitable method on location service");
+  }
+}
+
+// === Main Panel Code Starts ===
+const series = data.series[0];
+if (!series || series.fields.length < 5) {
+  htmlNode.innerHTML = "⚠️ No valid data from query.";
+  return;
+}
+
+console.log("series data got map", series);
+
+const fields = series.fields;
+const rowCount = fields[0].values.length;
+let regionData = [];
+
+for (let i = 0; i < rowCount; i++) {
+  const regionName = fields[0]?.values.get(i); // اسم الحي
+  const longitude = fields[1]?.values.get(i); // actually LAT
+  const latitude = fields[2]?.values.get(i); // actually LON
+  const accessPct = fields[3]?.values.get(i); // امكانية الوصول
+  const satisfactionPct = fields[4]?.values.get(i); // رضا السكان
+  
+  if (latitude && longitude) {
+    regionData.push({
+      name: encodeURIComponent(regionName || "غير معروف"),
+      lat: latitude,
+      long: longitude,
+      access: accessPct,
+      satisfaction: satisfactionPct
+    });
+  }
+}
+
+// === Embed iframe map ===
+const mapUrl = `https://tpavankumar7474-rgb.github.io/esri-for-hab-adarsh/`;
+const iframeOrigin = new URL(mapUrl).origin;
+
+htmlNode.innerHTML = `
+  <iframe id="hab-map" src="${mapUrl}" style="width:100%; height:100%; border:none;"></iframe>
+`;
+
+const iframe = htmlNode.querySelector('#hab-map');
+
+if (iframe) {
+  // Store the last known variable value to detect changes
+  let lastRegionValue = null;
+  
+  // === Function to check and sync variable with map ===
+  function checkVariableAndUpdateMap() {
+    const currentRegion = replaceVariables('$RegionName');
+    
+    // Only update if variable has changed and is valid
+    if (currentRegion && 
+        currentRegion !== '$RegionName' && 
+        currentRegion !== lastRegionValue) {
+      
+      console.log("🎯 Variable changed to:", currentRegion);
+      lastRegionValue = currentRegion;
+      
+      // Send highlight message to map
+      if (iframe && iframe.contentWindow) {
+        iframe.contentWindow.postMessage({
+          type: 'highlightRegion',
+          region: currentRegion
+        }, iframeOrigin);
+      }
+    }
+  }
+  
+  // === Iframe load handler ===
+  iframe.onload = () => {
+    console.log("Iframe loaded. Sending region data...");
+    
+    // Send initial data
+    iframe.contentWindow.postMessage({
+      type: 'habData',
+      data: regionData
+    }, iframeOrigin);
+    
+    // Check for pre-selected variable after iframe is ready
+    setTimeout(() => {
+      checkVariableAndUpdateMap();
+    }, 1000);
+    
+    // Start monitoring for variable changes
+    const varCheckInterval = setInterval(() => {
+      checkVariableAndUpdateMap();
+    }, 500);
+    
+    // Store interval ID for cleanup if needed
+    if (!window.habMapCleanup) {
+      window.habMapCleanup = [];
+    }
+    window.habMapCleanup.push(() => clearInterval(varCheckInterval));
+  };
+  
+  // === Listen for region clicks from map ===
+  window.addEventListener('message', (event) => {
+    if (event.origin !== iframeOrigin) return;
+    
+    const data = event.data;
+    if (!data || data.type !== 'mapClick') return;
+    
+    const clickedRegion = decodeURIComponent(data.region || "");
+    console.log("🖱️ Clicked region:", clickedRegion);
+    
+    if (clickedRegion) {
+      // Update the last known value to prevent duplicate highlight
+      lastRegionValue = clickedRegion;
+      
+      // Apply variable change
+      applyVars({ 'var-RegionName': clickedRegion });
+    }
+  });
+}
