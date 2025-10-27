@@ -87,8 +87,22 @@
       // Reset all first
       resetAllMarkers();
       
-      // Find the marker by name
-      const marker = markersMap[regionName];
+      // Try exact match first
+      let marker = markersMap[regionName];
+      
+      // If not found, try decoded version
+      if (!marker) {
+        const decoded = decodeURIComponent(regionName);
+        marker = markersMap[decoded];
+        console.log("Trying decoded:", decoded);
+      }
+      
+      // If still not found, try encoded version
+      if (!marker) {
+        const encoded = encodeURIComponent(regionName);
+        marker = markersMap[encoded];
+        console.log("Trying encoded:", encoded);
+      }
       
       if (marker) {
         console.log("✅ Found marker for:", regionName);
@@ -111,11 +125,11 @@
     window.addEventListener("message", (event) => {
       const { type, data, region } = event.data || {};
       
-      console.log("📩 Received message:", event.data);
+      console.log("📩 Received message type:", type);
 
       // === Handle habData (initial data load) ===
       if (type === "habData") {
-        console.log("📍 Loading region data...");
+        console.log("📍 Loading region data...", data);
         
         // Clear existing markers
         markers.forEach((m) => map.removeLayer(m));
@@ -139,8 +153,10 @@
             .addTo(map)
             .bindPopup(`<b>${regionName}</b>`)
             .on("click", () => {
+              console.log("🖱️ Marker clicked:", regionName);
+              
               // Reset previous
-              if (selectedMarker) {
+              if (selectedMarker && selectedMarker !== marker) {
                 selectedMarker.setStyle({
                   color: "#ff0000",
                   fillColor: "#ff0000",
@@ -156,18 +172,19 @@
               });
               selectedMarker = marker;
  
-              // Send region to Grafana
+              // Send region to Grafana (send decoded name)
+              console.log("📤 Sending to Grafana:", regionName);
               window.parent.postMessage(
                 {
                   type: "mapClick",
-                  region: r.name, // Send encoded name
+                  region: encodeURIComponent(regionName), // Send encoded
                 },
                 "*"
               );
             });
  
           markers.push(marker);
-          markersMap[regionName] = marker; // Store in map for lookup
+          markersMap[regionName] = marker; // Store decoded name as key
         });
  
         if (regionData.length > 1) {
@@ -183,8 +200,7 @@
         console.log("🎯 Highlight request for:", region);
         
         if (region) {
-          const decodedRegion = decodeURIComponent(region);
-          highlightMarkerByName(decodedRegion);
+          highlightMarkerByName(region);
         }
       }
     });
