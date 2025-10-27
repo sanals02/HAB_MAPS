@@ -1,135 +1,193 @@
-// === Helper to update Grafana variable using getLocationSrv ===
-function applyVars(vars) {
-  console.log("📍 APPLYING GRAFANA VARIABLES");
-  console.log("Variables object map:", vars);
-  
-  if (!getLocationSrv) {
-    console.error("❌ getLocationSrv is not available");
-    return;
-  }
-  
-  const ls = getLocationSrv();
-  if (typeof ls.partial === 'function') {
-    console.log("Using ls.partial()");
-    ls.partial(vars, true);
-  } else if (typeof ls.update === 'function') {
-    console.log("Using ls.update()");
-    ls.update({ partial: true, replace: true, query: vars });
-  } else {
-    console.error("❌ No suitable method on location service");
-  }
-}
-
-// === Main Panel Code Starts ===
-const series = data.series[0];
-if (!series || series.fields.length < 5) {
-  htmlNode.innerHTML = "⚠️ No valid data from query.";
-  return;
-}
-
-console.log("series data got map", series);
-
-const fields = series.fields;
-const rowCount = fields[0].values.length;
-let regionData = [];
-
-for (let i = 0; i < rowCount; i++) {
-  const regionName = fields[0]?.values.get(i); // اسم الحي
-  const longitude = fields[1]?.values.get(i); // actually LAT
-  const latitude = fields[2]?.values.get(i); // actually LON
-  const accessPct = fields[3]?.values.get(i); // امكانية الوصول
-  const satisfactionPct = fields[4]?.values.get(i); // رضا السكان
-  
-  if (latitude && longitude) {
-    regionData.push({
-      name: encodeURIComponent(regionName || "غير معروف"),
-      lat: latitude,
-      long: longitude,
-      access: accessPct,
-      satisfaction: satisfactionPct
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <title>خريطة حفر الباطن عالية الدقة</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+ 
+  <!-- Leaflet -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+ 
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      background: #000;
+      font-family: "TheSansArabic", sans-serif;
+    }
+    #map {
+      height: 100%;
+      width: 100%;
+    }
+    .leaflet-popup-content {
+      text-align: center;
+      direction: rtl;
+      font-size: 14px;
+    }
+  </style>
+</head>
+ 
+<body>
+  <div id="map"></div>
+ 
+  <script>
+    // === Initialize map centered on Hafar Al-Batin ===
+    const map = L.map("map", {
+      center: [28.4322, 45.9708],
+      zoom: 13,
+      minZoom: 10,
+      maxZoom: 22,
+      zoomControl: true,
     });
-  }
-}
+ 
+    // === ESRI World Imagery (High-Resolution Satellite) ===
+    const esriSatellite = L.tileLayer(
+      "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      {
+        maxZoom: 22,
+        attribution: "© Esri, Maxar, Earthstar Geographics",
+      }
+    ).addTo(map);
+ 
+    // === ESRI Label Layer ===
+    const esriLabels = L.tileLayer(
+      "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
+      {
+        maxZoom: 22,
+        opacity: 1,
+        attribution: "© Esri",
+      }
+    ).addTo(map);
+ 
+    // === Marker handling ===
+    let markers = [];
+    let markersMap = {}; // Map region names to markers
+    let selectedMarker = null;
 
-// === Embed iframe map ===
-const mapUrl = `https://tpavankumar7474-rgb.github.io/esri-for-hab-adarsh/`;
-const iframeOrigin = new URL(mapUrl).origin;
+    // === Helper function to reset all markers to red ===
+    function resetAllMarkers() {
+      markers.forEach((m) => {
+        m.setStyle({
+          color: "#ff0000",
+          fillColor: "#ff0000",
+          radius: 8,
+        });
+      });
+      selectedMarker = null;
+    }
 
-htmlNode.innerHTML = `
-  <iframe id="hab-map" src="${mapUrl}" style="width:100%; height:100%; border:none;"></iframe>
-`;
-
-const iframe = htmlNode.querySelector('#hab-map');
-
-if (iframe) {
-  // Store the last known variable value to detect changes
-  let lastRegionValue = null;
-  
-  // === Function to check and sync variable with map ===
-  function checkVariableAndUpdateMap() {
-    const currentRegion = replaceVariables('$RegionName');
-    
-    // Only update if variable has changed and is valid
-    if (currentRegion && 
-        currentRegion !== '$RegionName' && 
-        currentRegion !== lastRegionValue) {
+    // === Helper function to highlight a specific marker ===
+    function highlightMarkerByName(regionName) {
+      console.log("🟡 Attempting to highlight region:", regionName);
       
-      console.log("🎯 Variable changed to:", currentRegion);
-      lastRegionValue = currentRegion;
+      // Reset all first
+      resetAllMarkers();
       
-      // Send highlight message to map
-      if (iframe && iframe.contentWindow) {
-        iframe.contentWindow.postMessage({
-          type: 'highlightRegion',
-          region: currentRegion
-        }, iframeOrigin);
+      // Find the marker by name
+      const marker = markersMap[regionName];
+      
+      if (marker) {
+        console.log("✅ Found marker for:", regionName);
+        marker.setStyle({
+          color: "#ffff00",
+          fillColor: "#ffff00",
+          radius: 11,
+        });
+        selectedMarker = marker;
+        
+        // Pan to the marker
+        map.panTo(marker.getLatLng());
+      } else {
+        console.warn("⚠️ No marker found for:", regionName);
+        console.log("Available markers:", Object.keys(markersMap));
       }
     }
-  }
-  
-  // === Iframe load handler ===
-  iframe.onload = () => {
-    console.log("Iframe loaded. Sending region data...");
-    
-    // Send initial data
-    iframe.contentWindow.postMessage({
-      type: 'habData',
-      data: regionData
-    }, iframeOrigin);
-    
-    // Check for pre-selected variable after iframe is ready
-    setTimeout(() => {
-      checkVariableAndUpdateMap();
-    }, 1000);
-    
-    // Start monitoring for variable changes
-    const varCheckInterval = setInterval(() => {
-      checkVariableAndUpdateMap();
-    }, 500);
-    
-    // Store interval ID for cleanup if needed
-    if (!window.habMapCleanup) {
-      window.habMapCleanup = [];
-    }
-    window.habMapCleanup.push(() => clearInterval(varCheckInterval));
-  };
-  
-  // === Listen for region clicks from map ===
-  window.addEventListener('message', (event) => {
-    if (event.origin !== iframeOrigin) return;
-    
-    const data = event.data;
-    if (!data || data.type !== 'mapClick') return;
-    
-    const clickedRegion = decodeURIComponent(data.region || "");
-    console.log("🖱️ Clicked region:", clickedRegion);
-    
-    if (clickedRegion) {
-      // Update the last known value to prevent duplicate highlight
-      lastRegionValue = clickedRegion;
+ 
+    // --- Receive data from Grafana ---
+    window.addEventListener("message", (event) => {
+      const { type, data, region } = event.data || {};
       
-      // Apply variable change
-      applyVars({ 'var-RegionName': clickedRegion });
-    }
-  });
-}
+      console.log("📩 Received message:", event.data);
+
+      // === Handle habData (initial data load) ===
+      if (type === "habData") {
+        console.log("📍 Loading region data...");
+        
+        // Clear existing markers
+        markers.forEach((m) => map.removeLayer(m));
+        markers = [];
+        markersMap = {};
+        selectedMarker = null;
+ 
+        const regionData = data || [];
+        if (!regionData.length) return;
+ 
+        regionData.forEach((r) => {
+          const regionName = decodeURIComponent(r.name);
+          
+          const marker = L.circleMarker([r.lat, r.long], {
+            radius: 8,
+            color: "#ff0000",
+            fillColor: "#ff0000",
+            fillOpacity: 0.9,
+            weight: 1.5,
+          })
+            .addTo(map)
+            .bindPopup(`<b>${regionName}</b>`)
+            .on("click", () => {
+              // Reset previous
+              if (selectedMarker) {
+                selectedMarker.setStyle({
+                  color: "#ff0000",
+                  fillColor: "#ff0000",
+                  radius: 8,
+                });
+              }
+ 
+              // Highlight current
+              marker.setStyle({
+                color: "#ffff00",
+                fillColor: "#ffff00",
+                radius: 11,
+              });
+              selectedMarker = marker;
+ 
+              // Send region to Grafana
+              window.parent.postMessage(
+                {
+                  type: "mapClick",
+                  region: r.name, // Send encoded name
+                },
+                "*"
+              );
+            });
+ 
+          markers.push(marker);
+          markersMap[regionName] = marker; // Store in map for lookup
+        });
+ 
+        if (regionData.length > 1) {
+          const bounds = L.latLngBounds(regionData.map((r) => [r.lat, r.long]));
+          map.fitBounds(bounds, { padding: [40, 40] });
+        }
+        
+        console.log("✅ Loaded markers for regions:", Object.keys(markersMap));
+      }
+      
+      // === Handle highlightRegion (dropdown selection) ===
+      else if (type === "highlightRegion") {
+        console.log("🎯 Highlight request for:", region);
+        
+        if (region) {
+          const decodedRegion = decodeURIComponent(region);
+          highlightMarkerByName(decodedRegion);
+        }
+      }
+    });
+  </script>
+</body>
+</html>
