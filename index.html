@@ -4,15 +4,12 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
-<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.css" />
-<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css" />
 <style>
     html, body, #map {
       height: 100%;
       margin: 0;
       padding: 0;
     }
-    /* Dark theme to match ETMAM style */
     body {
       background: rgba(24,27,31,255);
       font-family: 'Arial', sans-serif;
@@ -20,7 +17,6 @@
     #map {
       background: rgba(24,27,31,255);
     }
-    /* Custom popup styling */
     .leaflet-popup-content-wrapper {
       background: rgba(40,40,40,0.95);
       color: #fff;
@@ -35,8 +31,8 @@
       top: 10px;
       left: 50%;
       transform: translateX(-50%);
-      background: rgba(24,27,31,255);
-      padding: 8px 20px;
+      background: rgba(24,27,31,0.9);
+      padding: 10px 25px;
       border-radius: 5px;
       color: #fff;
       font-size: 18px;
@@ -44,53 +40,170 @@
       z-index: 1000;
       text-align: center;
       border: 1px solid #555;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    }
+    .legend {
+      position: absolute;
+      bottom: 30px;
+      right: 10px;
+      background: rgba(24,27,31,0.9);
+      padding: 10px;
+      border-radius: 5px;
+      border: 1px solid #555;
+      color: #fff;
+      font-size: 12px;
+      z-index: 1000;
+    }
+    .legend-title {
+      font-weight: bold;
+      margin-bottom: 5px;
+      text-align: center;
+    }
+    .legend-scale {
+      display: flex;
+      height: 15px;
+      width: 150px;
+      margin: 5px 0;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .legend-scale div {
+      flex: 1;
+    }
+    .legend-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
     }
 </style>
 </head>
 <body>
 <div id="map"></div>
 <div class="title-overlay">نسبة إتمام الطلبات - EPM-Vd</div>
+<div class="legend">
+  <div class="legend-title">مكتمل %</div>
+  <div class="legend-scale">
+    <div style="background: rgb(255,179,179);"></div>
+    <div style="background: rgb(205,115,115);"></div>
+    <div style="background: rgb(155,51,51);"></div>
+    <div style="background: rgb(128,0,0);"></div>
+    <div style="background: rgb(179,217,255);"></div>
+    <div style="background: rgb(90,140,192);"></div>
+    <div style="background: rgb(0,64,128);"></div>
+  </div>
+  <div class="legend-labels">
+    <span>0%</span>
+    <span>100%</span>
+  </div>
+</div>
 
 <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
-<script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
 
 <script>
-    // Initialize map with dark theme
+    // Initialize map
     const map = L.map("map", {
-      center: [23.8859, 45.0792], // Center of Saudi Arabia
-      zoom: 5,
+      center: [26.4207, 50.0], // Eastern Province center
+      zoom: 8,
       zoomControl: true,
       attributionControl: true
     });
 
-    // Use OpenStreetMap tiles (you can switch to a darker theme if needed)
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 18,
       attribution: "© OpenStreetMap contributors"
     }).addTo(map);
 
-    const clusterGroup = L.markerClusterGroup();
-    map.addLayer(clusterGroup);
-
-    // City data matching your query
-    const cityData = [
-      { state: 'Riyadh', lat: 24.7136, lng: 46.6753, total: 100, finished: 75 },
-      { state: 'Jeddah', lat: 21.4858, lng: 39.1925, total: 80, finished: 60 },
-      { state: 'Dammam', lat: 26.3986, lng: 50.1979, total: 90, finished: 70 },
-      { state: 'Mecca', lat: 21.3891, lng: 39.8579, total: 85, finished: 65 },
-      { state: 'Medina', lat: 24.5247, lng: 39.5692, total: 95, finished: 80 }
-    ];
-
-    // Arabic names
-    const arabicNames = {
-      'Riyadh': 'الرياض',
-      'Jeddah': 'جدة',
-      'Dammam': 'الدمام',
-      'Mecca': 'مكة',
-      'Medina': 'المدينة'
+    // EPM-VD GeoJSON data
+    const epmVdGeoJson = {
+      "type": "FeatureCollection",
+      "features": [
+        {
+          "id": "1",
+          "type": "Feature",
+          "properties": {
+            "name": "Dammam",
+            "name_ar": "الدمام",
+            "total": 90,
+            "finished": 70
+          },
+          "geometry": {
+            "type": "Polygon",
+            "coordinates": [[
+              [49.95, 26.35], [50.25, 26.35], [50.25, 26.50], [49.95, 26.50], [49.95, 26.35]
+            ]]
+          }
+        },
+        {
+          "id": "2",
+          "type": "Feature",
+          "properties": {
+            "name": "Khobar",
+            "name_ar": "الخبر",
+            "total": 85,
+            "finished": 68
+          },
+          "geometry": {
+            "type": "Polygon",
+            "coordinates": [[
+              [50.10, 26.15], [50.35, 26.15], [50.35, 26.35], [50.10, 26.35], [50.10, 26.15]
+            ]]
+          }
+        },
+        {
+          "id": "3",
+          "type": "Feature",
+          "properties": {
+            "name": "Dhahran",
+            "name_ar": "الظهران",
+            "total": 80,
+            "finished": 60
+          },
+          "geometry": {
+            "type": "Polygon",
+            "coordinates": [[
+              [50.05, 26.25], [50.25, 26.25], [50.25, 26.35], [50.05, 26.35], [50.05, 26.25]
+            ]]
+          }
+        },
+        {
+          "id": "4",
+          "type": "Feature",
+          "properties": {
+            "name": "Qatif",
+            "name_ar": "القطيف",
+            "total": 95,
+            "finished": 85
+          },
+          "geometry": {
+            "type": "Polygon",
+            "coordinates": [[
+              [49.85, 26.50], [50.10, 26.50], [50.10, 26.75], [49.85, 26.75], [49.85, 26.50]
+            ]]
+          }
+        },
+        {
+          "id": "5",
+          "type": "Feature",
+          "properties": {
+            "name": "Jubail",
+            "name_ar": "الجبيل",
+            "total": 100,
+            "finished": 75
+          },
+          "geometry": {
+            "type": "Polygon",
+            "coordinates": [[
+              [49.45, 26.85], [49.85, 26.85], [49.85, 27.15], [49.45, 27.15], [49.45, 26.85]
+            ]]
+          }
+        }
+      ]
     };
 
-    // Color function matching ETMAM
+    // Store data from Grafana
+    let grafanaData = {};
+
+    // Color function matching ETMAM/Hail style
     function getColorByPercent(p) {
       if (p >= 75) {
         const c1 = [179, 217, 255], c2 = [0, 64, 128];
@@ -109,84 +222,130 @@
       }
     }
 
-    // Create markers
-    let bounds = [];
-    cityData.forEach((d) => {
-      const percent = (d.finished / d.total) * 100;
-      const arabicName = arabicNames[d.state] || d.state;
+    // Style function for polygons
+    function style(feature) {
+      const props = feature.properties;
+      const total = props.total || 100;
+      const finished = props.finished || 0;
+      const percent = (finished / total) * 100;
       
-      const tooltip = `
-<div style="text-align: center;">
-  <strong>${arabicName}</strong><br/>
-  <hr style="margin: 5px 0; border-color: #555;"/>
-  Total: ${d.total}<br/>
-  Finished: ${d.finished} (${percent.toFixed(1)}%)<br/>
-  Pending: ${d.total - d.finished}
+      return {
+        fillColor: getColorByPercent(percent),
+        weight: 2,
+        opacity: 1,
+        color: 'white',
+        fillOpacity: 0.7
+      };
+    }
+
+    // Highlight feature on hover
+    function highlightFeature(e) {
+      const layer = e.target;
+      layer.setStyle({
+        weight: 3,
+        color: '#fff',
+        fillOpacity: 0.9
+      });
+      layer.bringToFront();
+    }
+
+    function resetHighlight(e) {
+      geoJsonLayer.resetStyle(e.target);
+    }
+
+    // Click handler
+    function onFeatureClick(e) {
+      const props = e.target.feature.properties;
+      const total = props.total || 0;
+      const finished = props.finished || 0;
+      const pending = total - finished;
+      const percent = total > 0 ? ((finished / total) * 100).toFixed(1) : 0;
+
+      const popup = `
+<div style="text-align: center; min-width: 150px;">
+  <strong style="font-size: 16px;">${props.name_ar}</strong><br/>
+  <hr style="margin: 8px 0; border-color: #555;"/>
+  <div style="text-align: right; padding: 5px;">
+    <strong>المجموع:</strong> ${total}<br/>
+    <strong>المكتمل:</strong> ${finished} (${percent}%)<br/>
+    <strong>المعلق:</strong> ${pending}
+  </div>
 </div>
       `;
 
-      const marker = L.circleMarker([d.lat, d.lng], {
-        radius: 15,
-        fillColor: getColorByPercent(percent),
-        color: "#fff",
-        weight: 2,
-        opacity: 1,
-        fillOpacity: 0.8,
-        title: arabicName
-      });
-
-      marker.bindPopup(tooltip, {
-        className: 'custom-popup'
-      });
-
-      marker.on("click", (e) => {
-        const payload = {
-          type: "mapClick",
-          state: d.state,
-          lat: d.lat,
-          lng: d.lng,
-          total: d.total,
-          finished: d.finished,
-          label: arabicName
-        };
-        // Send message to parent if needed
-        if (window.parent && window.parent.postMessage) {
-          window.parent.postMessage(payload, "*");
-        }
-        console.log("Marker clicked:", payload);
-      });
-
-      clusterGroup.addLayer(marker);
-      bounds.push([d.lat, d.lng]);
-    });
-
-    // Fit bounds to show all markers
-    if (bounds.length > 0) {
-      const b = L.latLngBounds(bounds);
-      map.fitBounds(b, { padding: [40, 40] });
+      L.popup()
+        .setLatLng(e.latlng)
+        .setContent(popup)
+        .openOn(map);
     }
 
-    // Cluster click handler
-    clusterGroup.on("clusterclick", (a) => {
-      const markers = a.layer.getAllChildMarkers();
-      if (markers.length > 0) {
-        const first = markers[0].getLatLng();
-        const popup = `
-<div style="text-align: center;">
-  <strong>Cluster Info</strong><br/>
-  <hr style="margin: 5px 0; border-color: #555;"/>
-  <strong>Cluster size:</strong> ${markers.length}<br/>
-  <strong>First city:</strong> ${markers[0].options.title}
-</div>
-        `;
-        L.popup()
-          .setLatLng(a.latlng)
-          .setContent(popup)
-          .openOn(map);
+    // Add each feature
+    function onEachFeature(feature, layer) {
+      layer.on({
+        mouseover: highlightFeature,
+        mouseout: resetHighlight,
+        click: onFeatureClick
+      });
+
+      // Add label
+      const props = feature.properties;
+      const center = layer.getBounds().getCenter();
+      
+      L.marker(center, {
+        icon: L.divIcon({
+          className: 'label-icon',
+          html: `<div style="color: white; font-weight: bold; text-shadow: 1px 1px 2px black, -1px -1px 2px black; font-size: 14px; white-space: nowrap;">${props.name_ar}</div>`,
+          iconSize: [100, 20]
+        })
+      }).addTo(map);
+    }
+
+    // Add GeoJSON layer
+    let geoJsonLayer = L.geoJSON(epmVdGeoJson, {
+      style: style,
+      onEachFeature: onEachFeature
+    }).addTo(map);
+
+    // Fit bounds
+    map.fitBounds(geoJsonLayer.getBounds(), { padding: [50, 50] });
+
+    // Listen for data from Grafana
+    window.addEventListener("message", (event) => {
+      console.log("Received message:", event.data);
+      
+      if (event.data && event.data.incidentData) {
+        const incidentData = event.data.incidentData;
+        
+        // Map Grafana data to regions
+        incidentData.forEach(item => {
+          grafanaData[item.state] = item;
+        });
+
+        // Update the GeoJSON with real data
+        epmVdGeoJson.features.forEach(feature => {
+          const regionName = feature.properties.name;
+          const data = grafanaData[regionName];
+          
+          if (data) {
+            feature.properties.total = data.count || 100;
+            feature.properties.finished = Math.round((data.count || 100) * 0.75); // Example calculation
+          }
+        });
+
+        // Redraw the layer
+        map.removeLayer(geoJsonLayer);
+        geoJsonLayer = L.geoJSON(epmVdGeoJson, {
+          style: style,
+          onEachFeature: onEachFeature
+        }).addTo(map);
+        
+        map.fitBounds(geoJsonLayer.getBounds(), { padding: [50, 50] });
+        
+        console.log("EPM-VD map updated with Grafana data");
       }
     });
 
-    console.log("EPM-Vd map initialized with", cityData.length, "cities");
+    console.log("EPM-VD polygon map initialized");
 </script>
 </body>
 </html>
