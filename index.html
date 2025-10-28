@@ -1,128 +1,192 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="en">
 <head>
-<meta charset="UTF-8" />
-<title>خريطة حفر الباطن عالية الدقة</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
- 
-  <!-- Leaflet -->
-<link
-    rel="stylesheet"
-    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-  />
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
- 
-  <style>
-    html, body {
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css" />
+<style>
+    html, body, #map {
       height: 100%;
       margin: 0;
-      background: #000;
-      font-family: "TheSansArabic", sans-serif;
+      padding: 0;
+    }
+    /* Dark theme to match ETMAM style */
+    body {
+      background: rgba(24,27,31,255);
+      font-family: 'Arial', sans-serif;
     }
     #map {
-      height: 100%;
-      width: 100%;
+      background: rgba(24,27,31,255);
     }
-    .leaflet-popup-content {
+    /* Custom popup styling */
+    .leaflet-popup-content-wrapper {
+      background: rgba(40,40,40,0.95);
+      color: #fff;
+      border-radius: 8px;
+      font-family: 'Arial', sans-serif;
+    }
+    .leaflet-popup-tip {
+      background: rgba(40,40,40,0.95);
+    }
+    .title-overlay {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(24,27,31,255);
+      padding: 8px 20px;
+      border-radius: 5px;
+      color: #fff;
+      font-size: 18px;
+      font-weight: bold;
+      z-index: 1000;
       text-align: center;
-      direction: rtl;
-      font-size: 14px;
+      border: 1px solid #555;
     }
 </style>
 </head>
- 
 <body>
 <div id="map"></div>
- 
-  <script>
-    // === Initialize map centered on Hafar Al-Batin ===
+<div class="title-overlay">نسبة إتمام الطلبات - EPM-Vd</div>
+
+<script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
+
+<script>
+    // Initialize map with dark theme
     const map = L.map("map", {
-      center: [28.4322, 45.9708], // 🏙️ City center
-      zoom: 13,                   // ⬅️ Zoomed out to see full city area
-      minZoom: 10,
-      maxZoom: 22,                // 🔍 High detail available
+      center: [23.8859, 45.0792], // Center of Saudi Arabia
+      zoom: 5,
       zoomControl: true,
+      attributionControl: true
     });
- 
-    // === ESRI World Imagery (High-Resolution Satellite) ===
-    const esriSatellite = L.tileLayer(
-      "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-      {
-        maxZoom: 22,
-        attribution: "© Esri, Maxar, Earthstar Geographics",
+
+    // Use OpenStreetMap tiles (you can switch to a darker theme if needed)
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 18,
+      attribution: "© OpenStreetMap contributors"
+    }).addTo(map);
+
+    const clusterGroup = L.markerClusterGroup();
+    map.addLayer(clusterGroup);
+
+    // City data matching your query
+    const cityData = [
+      { state: 'Riyadh', lat: 24.7136, lng: 46.6753, total: 100, finished: 75 },
+      { state: 'Jeddah', lat: 21.4858, lng: 39.1925, total: 80, finished: 60 },
+      { state: 'Dammam', lat: 26.3986, lng: 50.1979, total: 90, finished: 70 },
+      { state: 'Mecca', lat: 21.3891, lng: 39.8579, total: 85, finished: 65 },
+      { state: 'Medina', lat: 24.5247, lng: 39.5692, total: 95, finished: 80 }
+    ];
+
+    // Arabic names
+    const arabicNames = {
+      'Riyadh': 'الرياض',
+      'Jeddah': 'جدة',
+      'Dammam': 'الدمام',
+      'Mecca': 'مكة',
+      'Medina': 'المدينة'
+    };
+
+    // Color function matching ETMAM
+    function getColorByPercent(p) {
+      if (p >= 75) {
+        const c1 = [179, 217, 255], c2 = [0, 64, 128];
+        const ratio = (p - 75) / 25;
+        const r = Math.round(c1[0] + (c2[0] - c1[0]) * ratio);
+        const g = Math.round(c1[1] + (c2[1] - c1[1]) * ratio);
+        const b = Math.round(c1[2] + (c2[2] - c1[2]) * ratio);
+        return `rgb(${r},${g},${b})`;
+      } else {
+        const c1 = [255, 179, 179], c2 = [128, 0, 0];
+        const ratio = p / 75;
+        const r = Math.round(c1[0] + (c2[0] - c1[0]) * ratio);
+        const g = Math.round(c1[1] + (c2[1] - c1[1]) * ratio);
+        const b = Math.round(c1[2] + (c2[2] - c1[2]) * ratio);
+        return `rgb(${r},${g},${b})`;
       }
-    ).addTo(map);
- 
-    // === ESRI Label Layer (shows street names, places, buildings) ===
-    const esriLabels = L.tileLayer(
-      "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/%7Bz%7D/%7By%7D/%7Bx%7D%22,
-      {
-        maxZoom: 22,
+    }
+
+    // Create markers
+    let bounds = [];
+    cityData.forEach((d) => {
+      const percent = (d.finished / d.total) * 100;
+      const arabicName = arabicNames[d.state] || d.state;
+      
+      const tooltip = `
+<div style="text-align: center;">
+  <strong>${arabicName}</strong><br/>
+  <hr style="margin: 5px 0; border-color: #555;"/>
+  Total: ${d.total}<br/>
+  Finished: ${d.finished} (${percent.toFixed(1)}%)<br/>
+  Pending: ${d.total - d.finished}
+</div>
+      `;
+
+      const marker = L.circleMarker([d.lat, d.lng], {
+        radius: 15,
+        fillColor: getColorByPercent(percent),
+        color: "#fff",
+        weight: 2,
         opacity: 1,
-        attribution: "© Esri",
-      }
-    ).addTo(map);
- 
-    // === Marker handling ===
-    let markers = [];
-    let selectedMarker = null;
- 
-    // --- Receive data from Grafana ---
-    window.addEventListener("message", (event) => {
-      if (!event.data || event.data.type !== "habData") return;
- 
-      markers.forEach((m) => map.removeLayer(m));
-      markers = [];
- 
-      const regionData = event.data.data || [];
-      if (!regionData.length) return;
- 
-      regionData.forEach((r) => {
-        const marker = L.circleMarker([r.lat, r.long], {
-          radius: 8,
-          color: "#ff0000",
-          fillColor: "#ff0000",
-          fillOpacity: 0.9,
-          weight: 1.5,
-        })
-          .addTo(map)
-          .bindPopup(`<b>${decodeURIComponent(r.name)}</b>`)
-          .on("click", () => {
-            // Reset previous
-            if (selectedMarker) {
-              selectedMarker.setStyle({
-                color: "#ff0000",
-                fillColor: "#ff0000",
-                radius: 8,
-              });
-            }
- 
-            // Highlight current
-            marker.setStyle({
-              color: "#ffff00",
-              fillColor: "#ffff00",
-              radius: 11,
-            });
-            selectedMarker = marker;
- 
-            // Send region to Grafana (without reload)
-            window.parent.postMessage(
-              {
-                type: "mapClick",
-                region: decodeURIComponent(r.name),
-              },
-              "*"
-            );
-          });
- 
-        markers.push(marker);
+        fillOpacity: 0.8,
+        title: arabicName
       });
- 
-      if (regionData.length > 1) {
-        const bounds = L.latLngBounds(regionData.map((r) => [r.lat, r.long]));
-        map.fitBounds(bounds, { padding: [40, 40] });
+
+      marker.bindPopup(tooltip, {
+        className: 'custom-popup'
+      });
+
+      marker.on("click", (e) => {
+        const payload = {
+          type: "mapClick",
+          state: d.state,
+          lat: d.lat,
+          lng: d.lng,
+          total: d.total,
+          finished: d.finished,
+          label: arabicName
+        };
+        // Send message to parent if needed
+        if (window.parent && window.parent.postMessage) {
+          window.parent.postMessage(payload, "*");
+        }
+        console.log("Marker clicked:", payload);
+      });
+
+      clusterGroup.addLayer(marker);
+      bounds.push([d.lat, d.lng]);
+    });
+
+    // Fit bounds to show all markers
+    if (bounds.length > 0) {
+      const b = L.latLngBounds(bounds);
+      map.fitBounds(b, { padding: [40, 40] });
+    }
+
+    // Cluster click handler
+    clusterGroup.on("clusterclick", (a) => {
+      const markers = a.layer.getAllChildMarkers();
+      if (markers.length > 0) {
+        const first = markers[0].getLatLng();
+        const popup = `
+<div style="text-align: center;">
+  <strong>Cluster Info</strong><br/>
+  <hr style="margin: 5px 0; border-color: #555;"/>
+  <strong>Cluster size:</strong> ${markers.length}<br/>
+  <strong>First city:</strong> ${markers[0].options.title}
+</div>
+        `;
+        L.popup()
+          .setLatLng(a.latlng)
+          .setContent(popup)
+          .openOn(map);
       }
     });
+
+    console.log("EPM-Vd map initialized with", cityData.length, "cities");
 </script>
 </body>
 </html>
