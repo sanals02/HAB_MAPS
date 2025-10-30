@@ -1,351 +1,128 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ar" dir="rtl">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
-<style>
-    html, body, #map {
+<meta charset="UTF-8" />
+<title>خريطة حفر الباطن عالية الدقة</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+ 
+  <!-- Leaflet -->
+<link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+ 
+  <style>
+    html, body {
       height: 100%;
       margin: 0;
-      padding: 0;
-    }
-    body {
-      background: rgba(24,27,31,255);
-      font-family: 'Arial', sans-serif;
+      background: #000;
+      font-family: "TheSansArabic", sans-serif;
     }
     #map {
-      background: rgba(24,27,31,255);
+      height: 100%;
+      width: 100%;
     }
-    .leaflet-popup-content-wrapper {
-      background: rgba(40,40,40,0.95);
-      color: #fff;
-      border-radius: 8px;
-      font-family: 'Arial', sans-serif;
-    }
-    .leaflet-popup-tip {
-      background: rgba(40,40,40,0.95);
-    }
-    .title-overlay {
-      position: absolute;
-      top: 10px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(24,27,31,0.9);
-      padding: 10px 25px;
-      border-radius: 5px;
-      color: #fff;
-      font-size: 18px;
-      font-weight: bold;
-      z-index: 1000;
+    .leaflet-popup-content {
       text-align: center;
-      border: 1px solid #555;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-    }
-    .legend {
-      position: absolute;
-      bottom: 30px;
-      right: 10px;
-      background: rgba(24,27,31,0.9);
-      padding: 10px;
-      border-radius: 5px;
-      border: 1px solid #555;
-      color: #fff;
-      font-size: 12px;
-      z-index: 1000;
-    }
-    .legend-title {
-      font-weight: bold;
-      margin-bottom: 5px;
-      text-align: center;
-    }
-    .legend-scale {
-      display: flex;
-      height: 15px;
-      width: 150px;
-      margin: 5px 0;
-      border-radius: 3px;
-      overflow: hidden;
-    }
-    .legend-scale div {
-      flex: 1;
-    }
-    .legend-labels {
-      display: flex;
-      justify-content: space-between;
-      font-size: 10px;
+      direction: rtl;
+      font-size: 14px;
     }
 </style>
 </head>
+ 
 <body>
 <div id="map"></div>
-<div class="title-overlay">نسبة إتمام الطلبات - EPM-Vd</div>
-<div class="legend">
-  <div class="legend-title">مكتمل %</div>
-  <div class="legend-scale">
-    <div style="background: rgb(255,179,179);"></div>
-    <div style="background: rgb(205,115,115);"></div>
-    <div style="background: rgb(155,51,51);"></div>
-    <div style="background: rgb(128,0,0);"></div>
-    <div style="background: rgb(179,217,255);"></div>
-    <div style="background: rgb(90,140,192);"></div>
-    <div style="background: rgb(0,64,128);"></div>
-  </div>
-  <div class="legend-labels">
-    <span>0%</span>
-    <span>100%</span>
-  </div>
-</div>
-
-<script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
-
-<script>
-    // Initialize map
+ 
+  <script>
+    // === Initialize map centered on Hafar Al-Batin ===
     const map = L.map("map", {
-      center: [26.4207, 50.0], // Eastern Province center
-      zoom: 8,
+      center: [28.4322, 45.9708], // 🏙️ City center
+      zoom: 13,                   // ⬅️ Zoomed out to see full city area
+      minZoom: 10,
+      maxZoom: 22,                // 🔍 High detail available
       zoomControl: true,
-      attributionControl: true
     });
-
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      maxZoom: 18,
-      attribution: "© OpenStreetMap contributors"
-    }).addTo(map);
-
-    // EPM-VD GeoJSON data
-    const epmVdGeoJson = {
-      "type": "FeatureCollection",
-      "features": [
-        {
-          "id": "1",
-          "type": "Feature",
-          "properties": {
-            "name": "Dammam",
-            "name_ar": "الدمام",
-            "total": 90,
-            "finished": 70
-          },
-          "geometry": {
-            "type": "Polygon",
-            "coordinates": [[
-              [49.95, 26.35], [50.25, 26.35], [50.25, 26.50], [49.95, 26.50], [49.95, 26.35]
-            ]]
-          }
-        },
-        {
-          "id": "2",
-          "type": "Feature",
-          "properties": {
-            "name": "Khobar",
-            "name_ar": "الخبر",
-            "total": 85,
-            "finished": 68
-          },
-          "geometry": {
-            "type": "Polygon",
-            "coordinates": [[
-              [50.10, 26.15], [50.35, 26.15], [50.35, 26.35], [50.10, 26.35], [50.10, 26.15]
-            ]]
-          }
-        },
-        {
-          "id": "3",
-          "type": "Feature",
-          "properties": {
-            "name": "Dhahran",
-            "name_ar": "الظهران",
-            "total": 80,
-            "finished": 60
-          },
-          "geometry": {
-            "type": "Polygon",
-            "coordinates": [[
-              [50.05, 26.25], [50.25, 26.25], [50.25, 26.35], [50.05, 26.35], [50.05, 26.25]
-            ]]
-          }
-        },
-        {
-          "id": "4",
-          "type": "Feature",
-          "properties": {
-            "name": "Qatif",
-            "name_ar": "القطيف",
-            "total": 95,
-            "finished": 85
-          },
-          "geometry": {
-            "type": "Polygon",
-            "coordinates": [[
-              [49.85, 26.50], [50.10, 26.50], [50.10, 26.75], [49.85, 26.75], [49.85, 26.50]
-            ]]
-          }
-        },
-        {
-          "id": "5",
-          "type": "Feature",
-          "properties": {
-            "name": "Jubail",
-            "name_ar": "الجبيل",
-            "total": 100,
-            "finished": 75
-          },
-          "geometry": {
-            "type": "Polygon",
-            "coordinates": [[
-              [49.45, 26.85], [49.85, 26.85], [49.85, 27.15], [49.45, 27.15], [49.45, 26.85]
-            ]]
-          }
-        }
-      ]
-    };
-
-    // Store data from Grafana
-    let grafanaData = {};
-
-    // Color function matching ETMAM/Hail style
-    function getColorByPercent(p) {
-      if (p >= 75) {
-        const c1 = [179, 217, 255], c2 = [0, 64, 128];
-        const ratio = (p - 75) / 25;
-        const r = Math.round(c1[0] + (c2[0] - c1[0]) * ratio);
-        const g = Math.round(c1[1] + (c2[1] - c1[1]) * ratio);
-        const b = Math.round(c1[2] + (c2[2] - c1[2]) * ratio);
-        return `rgb(${r},${g},${b})`;
-      } else {
-        const c1 = [255, 179, 179], c2 = [128, 0, 0];
-        const ratio = p / 75;
-        const r = Math.round(c1[0] + (c2[0] - c1[0]) * ratio);
-        const g = Math.round(c1[1] + (c2[1] - c1[1]) * ratio);
-        const b = Math.round(c1[2] + (c2[2] - c1[2]) * ratio);
-        return `rgb(${r},${g},${b})`;
+ 
+    // === ESRI World Imagery (High-Resolution Satellite) ===
+    const esriSatellite = L.tileLayer(
+      "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      {
+        maxZoom: 22,
+        attribution: "© Esri, Maxar, Earthstar Geographics",
       }
-    }
-
-    // Style function for polygons
-    function style(feature) {
-      const props = feature.properties;
-      const total = props.total || 100;
-      const finished = props.finished || 0;
-      const percent = (finished / total) * 100;
-      
-      return {
-        fillColor: getColorByPercent(percent),
-        weight: 2,
+    ).addTo(map);
+ 
+    // === ESRI Label Layer (shows street names, places, buildings) ===
+    const esriLabels = L.tileLayer(
+      "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/%7Bz%7D/%7By%7D/%7Bx%7D%22,
+      {
+        maxZoom: 22,
         opacity: 1,
-        color: 'white',
-        fillOpacity: 0.7
-      };
-    }
-
-    // Highlight feature on hover
-    function highlightFeature(e) {
-      const layer = e.target;
-      layer.setStyle({
-        weight: 3,
-        color: '#fff',
-        fillOpacity: 0.9
-      });
-      layer.bringToFront();
-    }
-
-    function resetHighlight(e) {
-      geoJsonLayer.resetStyle(e.target);
-    }
-
-    // Click handler
-    function onFeatureClick(e) {
-      const props = e.target.feature.properties;
-      const total = props.total || 0;
-      const finished = props.finished || 0;
-      const pending = total - finished;
-      const percent = total > 0 ? ((finished / total) * 100).toFixed(1) : 0;
-
-      const popup = `
-<div style="text-align: center; min-width: 150px;">
-  <strong style="font-size: 16px;">${props.name_ar}</strong><br/>
-  <hr style="margin: 8px 0; border-color: #555;"/>
-  <div style="text-align: right; padding: 5px;">
-    <strong>المجموع:</strong> ${total}<br/>
-    <strong>المكتمل:</strong> ${finished} (${percent}%)<br/>
-    <strong>المعلق:</strong> ${pending}
-  </div>
-</div>
-      `;
-
-      L.popup()
-        .setLatLng(e.latlng)
-        .setContent(popup)
-        .openOn(map);
-    }
-
-    // Add each feature
-    function onEachFeature(feature, layer) {
-      layer.on({
-        mouseover: highlightFeature,
-        mouseout: resetHighlight,
-        click: onFeatureClick
-      });
-
-      // Add label
-      const props = feature.properties;
-      const center = layer.getBounds().getCenter();
-      
-      L.marker(center, {
-        icon: L.divIcon({
-          className: 'label-icon',
-          html: `<div style="color: white; font-weight: bold; text-shadow: 1px 1px 2px black, -1px -1px 2px black; font-size: 14px; white-space: nowrap;">${props.name_ar}</div>`,
-          iconSize: [100, 20]
-        })
-      }).addTo(map);
-    }
-
-    // Add GeoJSON layer
-    let geoJsonLayer = L.geoJSON(epmVdGeoJson, {
-      style: style,
-      onEachFeature: onEachFeature
-    }).addTo(map);
-
-    // Fit bounds
-    map.fitBounds(geoJsonLayer.getBounds(), { padding: [50, 50] });
-
-    // Listen for data from Grafana
+        attribution: "© Esri",
+      }
+    ).addTo(map);
+ 
+    // === Marker handling ===
+    let markers = [];
+    let selectedMarker = null;
+ 
+    // --- Receive data from Grafana ---
     window.addEventListener("message", (event) => {
-      console.log("Received message:", event.data);
-      
-      if (event.data && event.data.incidentData) {
-        const incidentData = event.data.incidentData;
-        
-        // Map Grafana data to regions
-        incidentData.forEach(item => {
-          grafanaData[item.state] = item;
-        });
-
-        // Update the GeoJSON with real data
-        epmVdGeoJson.features.forEach(feature => {
-          const regionName = feature.properties.name;
-          const data = grafanaData[regionName];
-          
-          if (data) {
-            feature.properties.total = data.count || 100;
-            feature.properties.finished = Math.round((data.count || 100) * 0.75); // Example calculation
-          }
-        });
-
-        // Redraw the layer
-        map.removeLayer(geoJsonLayer);
-        geoJsonLayer = L.geoJSON(epmVdGeoJson, {
-          style: style,
-          onEachFeature: onEachFeature
-        }).addTo(map);
-        
-        map.fitBounds(geoJsonLayer.getBounds(), { padding: [50, 50] });
-        
-        console.log("EPM-VD map updated with Grafana data");
+      if (!event.data || event.data.type !== "habData") return;
+ 
+      markers.forEach((m) => map.removeLayer(m));
+      markers = [];
+ 
+      const regionData = event.data.data || [];
+      if (!regionData.length) return;
+ 
+      regionData.forEach((r) => {
+        const marker = L.circleMarker([r.lat, r.long], {
+          radius: 8,
+          color: "#ff0000",
+          fillColor: "#ff0000",
+          fillOpacity: 0.9,
+          weight: 1.5,
+        })
+          .addTo(map)
+          .bindPopup(`<b>${decodeURIComponent(r.name)}</b>`)
+          .on("click", () => {
+            // Reset previous
+            if (selectedMarker) {
+              selectedMarker.setStyle({
+                color: "#ff0000",
+                fillColor: "#ff0000",
+                radius: 8,
+              });
+            }
+ 
+            // Highlight current
+            marker.setStyle({
+              color: "#ffff00",
+              fillColor: "#ffff00",
+              radius: 11,
+            });
+            selectedMarker = marker;
+ 
+            // Send region to Grafana (without reload)
+            window.parent.postMessage(
+              {
+                type: "mapClick",
+                region: decodeURIComponent(r.name),
+              },
+              "*"
+            );
+          });
+ 
+        markers.push(marker);
+      });
+ 
+      if (regionData.length > 1) {
+        const bounds = L.latLngBounds(regionData.map((r) => [r.lat, r.long]));
+        map.fitBounds(bounds, { padding: [40, 40] });
       }
     });
-
-    console.log("EPM-VD polygon map initialized");
 </script>
 </body>
 </html>
